@@ -1508,6 +1508,31 @@ var VariableComponent = IgeEntity.extend({
 					}
 
 					break;
+				case 'stringStartsWith':
+					var sourceString = self.getValue(text.sourceString, vars);
+					var patternString = self.getValue(text.patternString, vars);
+					
+					if (sourceString && patternString) {
+						returnValue = sourceString.startsWith(patternString);
+					}
+					break;
+				case 'stringEndsWith':
+					var sourceString = self.getValue(text.sourceString, vars);
+					var patternString = self.getValue(text.patternString, vars);
+					
+					if (sourceString && patternString) {
+						returnValue = sourceString.endsWith(patternString);
+					}
+					break;
+				case 'replaceValuesInString':
+					var sourceString = self.getValue(text.sourceString, vars);
+					var matchString = self.getValue(text.matchString, vars);
+					var newString = self.getValue(text.newString, vars);
+						
+					if (sourceString && matchString && newString) {
+						returnValue = sourceString.replaceAll(matchString, newString)
+					}
+					break;
 				case 'concat':
 					var stringA = self.getValue(text.textA, vars)
 					var stringB = self.getValue(text.textB, vars)
