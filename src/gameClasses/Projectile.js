@@ -13,6 +13,9 @@ var Projectile = IgeEntityBox2d.extend({
 		if (ige.isClient) {
 			projectileData = ige.game.getAsset('projectileTypes', data.type);
 			projectileData = _.pick(projectileData, ige.client.keysToAddBeforeRender)
+			if (!!projectileData.shader) {
+                this._shader = projectileData.shader;
+            }
 		}
 
 		self.entityId = this._id;

@@ -14,6 +14,10 @@ var Item = IgeEntityBox2d.extend({
 		if (ige.isClient) {
 			itemData = ige.game.getAsset('itemTypes', data.itemTypeId);
 			itemData = _.pick(itemData, ige.client.keysToAddBeforeRender)
+			console.log(itemData);
+			if (!!itemData.shader) {
+                this._shader = itemData.shader;
+            }
 		}
 
 		self._stats = Object.assign(

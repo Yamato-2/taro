@@ -37,12 +37,19 @@ var Unit = IgeEntityBox2d.extend({
 
         if (ige.isClient) {
             unitData = _.pick(unitData, ige.client.keysToAddBeforeRender)
+            // bind a shader from the game JSON.
+            // we should use a shader store for this, but that's still open for improvement and very early
+            // in case there's no unitData.shader, it will default to no shader allowing backwards compatibility
+            if (!!unitData.shader) {
+                this._shader = unitData.shader;
+            }
         }
+
+
 
         self._stats = Object.assign(
             data,
-            unitData,
-            {
+            unitData, {
                 // skin: unitType.skin,
                 bonusSpeed: 0,
                 flip: data.flip == undefined ? 0 : data.flip
@@ -84,8 +91,7 @@ var Unit = IgeEntityBox2d.extend({
         }
         if (self._stats.scaleBody) {
             self._stats.scale = parseFloat(self._stats.scaleBody);
-        }
-        else {
+        } else {
             if (!self._stats.scale) {
                 self._stats.scale = self._stats.currentBody.spriteScale > 0 ? self._stats.currentBody.spriteScale : 1;
             }
@@ -105,8 +111,7 @@ var Unit = IgeEntityBox2d.extend({
 
             ige.server.totalUnitsCreated++;
             self.addComponent(AIComponent);
-        }
-        else if (ige.isClient) {
+        } else if (ige.isClient) {
             var networkId = ige.network.id();
             self.addComponent(UnitUiComponent);
 
@@ -208,8 +213,8 @@ var Unit = IgeEntityBox2d.extend({
             if (attribute) {
                 attribute.key = attributeKey;
 
-                var shouldRender = self.shouldRenderAttribute(attribute); 
-                
+                var shouldRender = self.shouldRenderAttribute(attribute);
+
                 if (shouldRender) {
                     attributesToRender.push(attribute);
                 }
@@ -251,21 +256,19 @@ var Unit = IgeEntityBox2d.extend({
             if (pixiBar) {
                 if (shouldRender) {
                     pixiBar.updateBar(attr);
-                }
-                else {
+                } else {
                     self.attributeBars = self.attributeBars.filter(function (bar) {
                         return bar.id !== pixiBar.id();
                     });
 
                     pixiBar.destroy();
                 }
-            }
-            else {
+            } else {
                 if (shouldRender) {
                     attr.index = self.attributeBars.length + 1;
-        
+
                     pixiBar = new PixiAttributeBar(self.id(), attr);
-        
+
                     self.attributeBars.push({
                         id: pixiBar.id(),
                         attribute: attr.type,
@@ -309,12 +312,15 @@ var Unit = IgeEntityBox2d.extend({
         var newOwnerPlayer = newOwnerPlayerId ? ige.$(newOwnerPlayerId) : undefined;
         if (newOwnerPlayer && newOwnerPlayer._stats) {
             self._stats.ownerId = newOwnerPlayerId
-            self._stats.name = (config && config.dontUpdateName)
-                ? (self._stats.name || newOwnerPlayer._stats.name) // if unit already has name dont update it
-                : newOwnerPlayer._stats.name;
+            self._stats.name = (config && config.dontUpdateName) ?
+                (self._stats.name || newOwnerPlayer._stats.name) // if unit already has name dont update it
+                :
+                newOwnerPlayer._stats.name;
             self._stats.clientId = newOwnerPlayer && newOwnerPlayer._stats ? newOwnerPlayer._stats.clientId : undefined;
             if (ige.isServer) {
-                self.streamUpdateData([{ ownerPlayerId: newOwnerPlayerId }]);
+                self.streamUpdateData([{
+                    ownerPlayerId: newOwnerPlayerId
+                }]);
                 newOwnerPlayer.ownUnit(self)
             }
         }
@@ -464,7 +470,9 @@ var Unit = IgeEntityBox2d.extend({
             // console.log("buyItem - getFirstAvailableSlotForItem", self.inventory.getFirstAvailableSlotForItem(itemData), "replaceItemInTargetSlot", shopData.replaceItemInTargetSlot)
 
             if (itemData.isUsedOnPickup || self.inventory.getFirstAvailableSlotForItem(itemData) > -1 || shopData.replaceItemInTargetSlot) {
-                var attrData = { attributes: {} }
+                var attrData = {
+                    attributes: {}
+                }
 
                 // pay attributes
                 for (var attributeTypeId in shopData.price.playerAttributes) {
@@ -491,9 +499,10 @@ var Unit = IgeEntityBox2d.extend({
                                 if (itemToBeConsumed._stats.quantity != undefined && itemToBeConsumed._stats.quantity != null && itemToBeConsumed._stats.quantity >= balanceOwed) {
                                     itemToBeConsumed._stats.quantity -= balanceOwed;
                                     balanceOwed = 0;
-                                    itemToBeConsumed.streamUpdateData([{ quantity: itemToBeConsumed._stats.quantity }]);
-                                }
-                                else if (itemToBeConsumed._stats.quantity > 0) { // what does this do Parth?
+                                    itemToBeConsumed.streamUpdateData([{
+                                        quantity: itemToBeConsumed._stats.quantity
+                                    }]);
+                                } else if (itemToBeConsumed._stats.quantity > 0) { // what does this do Parth?
                                     var lowerQty = Math.min(itemToBeConsumed._stats.quantity, balanceOwed);
                                     balanceOwed -= lowerQty;
                                     itemToBeConsumed.updateQuantity(itemToBeConsumed._stats.quantity - lowerQty);
@@ -509,8 +518,7 @@ var Unit = IgeEntityBox2d.extend({
                             }
                             j++;
                         }
-                    }
-                    else if (itemToBeConsumed && (!itemToBeConsumed._stats.quantity && itemToBeConsumed._stats.quantity !== 0) && (!balanceOwed && balanceOwed !== 0)) {
+                    } else if (itemToBeConsumed && (!itemToBeConsumed._stats.quantity && itemToBeConsumed._stats.quantity !== 0) && (!balanceOwed && balanceOwed !== 0)) {
                         self.dropItem(itemToBeConsumed._stats.slotIndex);
                         itemToBeConsumed.remove();
                     }
@@ -539,11 +547,17 @@ var Unit = IgeEntityBox2d.extend({
                 }
 
                 itemData.itemTypeId = itemTypeId;
-                ige.network.send("ui", { command: "shopResponse", type: 'purchase' }, self._stats.clientId);
+                ige.network.send("ui", {
+                    command: "shopResponse",
+                    type: 'purchase'
+                }, self._stats.clientId);
                 //item purchased and pickup
                 self.pickUpItem(itemData, shopData.replaceItemInTargetSlot);
             } else {
-                ige.network.send("ui", { command: "shopResponse", type: 'inventory_full' }, self._stats.clientId);
+                ige.network.send("ui", {
+                    command: "shopResponse",
+                    type: 'inventory_full'
+                }, self._stats.clientId);
             }
         }
     },
@@ -672,7 +686,10 @@ var Unit = IgeEntityBox2d.extend({
                 newItem.applyAnimationForState('selected');
                 let customTween = {
                     type: "swing",
-                    keyFrames: [[0, [0, 0, -1.57]], [100, [0, 0, 0]]]
+                    keyFrames: [
+                        [0, [0, 0, -1.57]],
+                        [100, [0, 0, 0]]
+                    ]
                 };
                 newItem.tween.start(null, this._rotate.z, customTween);
             }
@@ -715,7 +732,7 @@ var Unit = IgeEntityBox2d.extend({
 
         var oldAttributes = self._stats.attributes;
         for (var i in data) {
-            if (i == 'name') {// don't overwrite unit's name with unit type name
+            if (i == 'name') { // don't overwrite unit's name with unit type name
                 continue;
             }
 
@@ -733,8 +750,7 @@ var Unit = IgeEntityBox2d.extend({
             for (var key in data.variables) {
                 if (self.variables && self.variables[key]) {
                     variables[key] = self.variables[key] == undefined ? data.variables[key] : self.variables[key];
-                }
-                else {
+                } else {
                     variables[key] = data.variables[key];
                 }
             }
@@ -784,13 +800,11 @@ var Unit = IgeEntityBox2d.extend({
                     if (item._stats.slotIndex != undefined && self._stats.currentItemIndex != undefined) {
                         if (self._stats.currentItemIndex === item._stats.slotIndex) {
                             item.setState('selected');
-                        }
-                        else {
+                        } else {
                             item.setState('unselected');
                         }
                     }
-                }
-                else {
+                } else {
                     item.setState('unselected');
                 }
 
@@ -819,7 +833,10 @@ var Unit = IgeEntityBox2d.extend({
             self.changeItem(self._stats.currentItemIndex);
 
         } else if (ige.isClient) {
-            var zIndex = self._stats.currentBody && self._stats.currentBody['z-index'] || { layer: 3, depth: 3 };
+            var zIndex = self._stats.currentBody && self._stats.currentBody['z-index'] || {
+                layer: 3,
+                depth: 3
+            };
 
             if (zIndex && ige.network.id() == self._stats.clientId) {
                 // depth of this player's units should have +1 depth to avoid flickering on overlap
@@ -858,6 +875,16 @@ var Unit = IgeEntityBox2d.extend({
                 self.unitUi.updateAllAttributeBars()
             }
             self.inventory.update()
+        }
+        if (ige.isClient) {
+            if (!!this._pixiTexture) {
+                if (!!data.shader) {
+                    this._shader = data.shader;
+                } else {
+                    this._shader = null;
+                }
+                self.updateShader();
+            }
         }
     },
 
@@ -899,7 +926,7 @@ var Unit = IgeEntityBox2d.extend({
             } else {
                 // if designated item slot is already occupied, unit cannot get this item
                 var availableSlot = self.inventory.getFirstAvailableSlotForItem(itemData)
-                
+
                 // insert/merge itemData's quantity into matching items in the inventory
                 var totalInventorySize = this.inventory.getTotalInventorySize();
                 for (var i = 0; i < totalInventorySize; i++) {
@@ -931,7 +958,9 @@ var Unit = IgeEntityBox2d.extend({
                                     var quantityToBeTakenFromItem = 0;
                                 }
 
-                                matchingItem.streamUpdateData([{ quantity: matchingItem._stats.quantity + quantityToBeTakenFromItem }])
+                                matchingItem.streamUpdateData([{
+                                    quantity: matchingItem._stats.quantity + quantityToBeTakenFromItem
+                                }])
                                 itemData.quantity -= quantityToBeTakenFromItem
                             }
                         }
@@ -952,13 +981,20 @@ var Unit = IgeEntityBox2d.extend({
                         item = new Item(itemData);
                     }
                     self.inventory.insertItem(item, availableSlot - 1);
-                    self.streamUpdateData([{ itemIds: self._stats.itemIds }])
+                    self.streamUpdateData([{
+                        itemIds: self._stats.itemIds
+                    }])
                     var slotIndex = availableSlot - 1;
-                    item.streamUpdateData([
-                                    {ownerUnitId: self.id()},
-                                    {quantity: itemData.quantity},
-                                    {slotIndex: slotIndex }
-                                ])
+                    item.streamUpdateData([{
+                            ownerUnitId: self.id()
+                        },
+                        {
+                            quantity: itemData.quantity
+                        },
+                        {
+                            slotIndex: slotIndex
+                        }
+                    ])
                     self.updateStats(item.id())
 
                     if (slotIndex == self._stats.currentItemIndex) {
@@ -980,7 +1016,7 @@ var Unit = IgeEntityBox2d.extend({
 
     canCarryItem: function (itemData) {
         return itemData && (
-            (!itemData.carriedBy || itemData.carriedBy.length == 0) ||// carried by everyone
+            (!itemData.carriedBy || itemData.carriedBy.length == 0) || // carried by everyone
             (itemData.carriedBy && itemData.carriedBy.indexOf(this._stats.type) > -1) // carried by specific unit
         );
 
@@ -1012,22 +1048,22 @@ var Unit = IgeEntityBox2d.extend({
             ownerPlayer.isHostileTo(ige.client.myPlayer) &&
             self._stats.isNameLabelHidden
         ) || (
-                ownerPlayer &&
-                ownerPlayer.isFriendlyTo(ige.client.myPlayer) &&
-                self._stats.isNameLabelHiddenToFriendly
-            ) || (
-                ownerPlayer &&
-                ownerPlayer.isNeutralTo(ige.client.myPlayer) &&
-                self._stats.isNameLabelHiddenToNeutral
-            ) || (
-                // for AI x players we ont have playerTypeData as they dont have playerTypeId fields
-                playerTypeData
-                    ? playerTypeData.showNameLabel === false
-                    : true
-            ) || (
-                !ige.client.myPlayer ||
-                ige.client.myPlayer._stats.playerJoined === false
-            );
+            ownerPlayer &&
+            ownerPlayer.isFriendlyTo(ige.client.myPlayer) &&
+            self._stats.isNameLabelHiddenToFriendly
+        ) || (
+            ownerPlayer &&
+            ownerPlayer.isNeutralTo(ige.client.myPlayer) &&
+            self._stats.isNameLabelHiddenToNeutral
+        ) || (
+            // for AI x players we ont have playerTypeData as they dont have playerTypeId fields
+            playerTypeData ?
+            playerTypeData.showNameLabel === false :
+            true
+        ) || (
+            !ige.client.myPlayer ||
+            ige.client.myPlayer._stats.playerJoined === false
+        );
 
         if (hideLabel) {
             return;
@@ -1066,17 +1102,17 @@ var Unit = IgeEntityBox2d.extend({
             ownerPlayer.isHostileTo(ige.client.myPlayer) &&
             self._stats.isNameLabelHidden
         ) || (
-                ownerPlayer &&
-                ownerPlayer.isFriendlyTo(ige.client.myPlayer) &&
-                self._stats.isNameLabelHiddenToFriendly
-            ) || (
-                ownerPlayer &&
-                ownerPlayer.isNeutralTo(ige.client.myPlayer) &&
-                self._stats.isNameLabelHiddenToNeutral
-            ) || (
-                !ige.client.myPlayer ||
-                ige.client.myPlayer._stats.playerJoined === false
-            );
+            ownerPlayer &&
+            ownerPlayer.isFriendlyTo(ige.client.myPlayer) &&
+            self._stats.isNameLabelHiddenToFriendly
+        ) || (
+            ownerPlayer &&
+            ownerPlayer.isNeutralTo(ige.client.myPlayer) &&
+            self._stats.isNameLabelHiddenToNeutral
+        ) || (
+            !ige.client.myPlayer ||
+            ige.client.myPlayer._stats.playerJoined === false
+        );
 
         if (hideLabel) {
             return;
@@ -1104,14 +1140,14 @@ var Unit = IgeEntityBox2d.extend({
                     var fadingTextConfig = self._stats.fadingTextQueue.shift();
 
                     new IgePixiFloatingText(fadingTextConfig.text, {
-                        shouldBeBold: shouldBeBold,
-                        isFadeUp: true,
-                        parentUnit: self.id(),
-                        translate: {
-                            x: self._pixiTexture.x,
-                            y: self._pixiTexture.y - (self._pixiTexture.height / 2)
-                        }
-                    })
+                            shouldBeBold: shouldBeBold,
+                            isFadeUp: true,
+                            parentUnit: self.id(),
+                            translate: {
+                                x: self._pixiTexture.x,
+                                y: self._pixiTexture.y - (self._pixiTexture.height / 2)
+                            }
+                        })
                         .layer(highestDepth)
                         .depth(self._stats.currentBody['z-index'].depth + 1)
                         .colorOverlay(fadingTextConfig.color || DEFAULT_COLOR)
@@ -1141,19 +1177,21 @@ var Unit = IgeEntityBox2d.extend({
                 item.oldOwnerId = owner.id();
 
                 var defaultData = {
-                                translate: {
-                                    x: this._translate.x + item.anchoredOffset.x,
-                                    y: this._translate.y + item.anchoredOffset.y
-                                },
-                                rotate: item._rotate.z
-                            };
+                    translate: {
+                        x: this._translate.x + item.anchoredOffset.x,
+                        y: this._translate.y + item.anchoredOffset.y
+                    },
+                    rotate: item._rotate.z
+                };
 
                 item.setState('dropped', defaultData);
                 item.setOwnerUnit(undefined);
                 self._stats.currentItemId = null;
 
                 if (item._stats.hidden) {
-                    item.streamUpdateData([{ hidden: false }]);
+                    item.streamUpdateData([{
+                        hidden: false
+                    }]);
                 }
 
                 self.inventory.removeItem(itemIndex, item.id());
@@ -1176,12 +1214,12 @@ var Unit = IgeEntityBox2d.extend({
     },
 
     // make this unit go owie
-    inflictDamage: function(damageData) {
-		var self = this;
+    inflictDamage: function (damageData) {
+        var self = this;
         // only unit can be damaged
-		if (damageData) {
+        if (damageData) {
             var targetPlayer = this.getOwner();
-			var sourcePlayer = ige.$(damageData.sourcePlayerId)
+            var sourcePlayer = ige.$(damageData.sourcePlayerId)
             var sourceUnit = ige.$(damageData.sourceUnitId)
             var isVulnerable = false;
 
@@ -1200,16 +1238,16 @@ var Unit = IgeEntityBox2d.extend({
                 isVulnerable = true;
             }
 
-			if (isVulnerable) {
-				// console.log("inflicting damage!", damage)
-				ige.game.lastAttackingUnitId = damageData.sourceUnitId;
-				ige.game.lastAttackedUnitId = this.id();
-				ige.game.lastAttackingItemId = damageData.sourceItemId;
-				this.lastAttackedBy = sourceUnit;
+            if (isVulnerable) {
+                // console.log("inflicting damage!", damage)
+                ige.game.lastAttackingUnitId = damageData.sourceUnitId;
+                ige.game.lastAttackedUnitId = this.id();
+                ige.game.lastAttackingItemId = damageData.sourceItemId;
+                this.lastAttackedBy = sourceUnit;
 
-				if (ige.isClient) {
-					this.playEffect('attacked');
-					return true;
+                if (ige.isClient) {
+                    this.playEffect('attacked');
+                    return true;
                 }
 
                 var triggeredBy = {
@@ -1218,40 +1256,40 @@ var Unit = IgeEntityBox2d.extend({
                 };
                 ige.trigger && ige.trigger.fire("unitAttacksUnit", triggeredBy);
 
-				var armor = this._stats.attributes['armor'] && this._stats.attributes['armor'].value || 0;
-				var damageReduction = (0.05 * armor) / (1.5 + 0.04 * armor);
-				var ownerUnitBaseDamage = (sourceUnit != undefined) ? sourceUnit.getBaseDamage() : 0;
-				if (damageData.unitAttributes) {
-					_.forEach(damageData.unitAttributes, function (damageValue, damageAttrKey) {
-						var attribute = self._stats.attributes[damageAttrKey];
-						if (attribute) {
-							if (damageAttrKey == 'health') {
-								damageValue += ownerUnitBaseDamage;
-							}
-							damageValue *= 1 - damageReduction;
-							var newValue = (attribute.value || 0) - (damageValue || 0);
-							self.attribute.update(damageAttrKey, newValue, true);
-						}
-					});
-				}
+                var armor = this._stats.attributes['armor'] && this._stats.attributes['armor'].value || 0;
+                var damageReduction = (0.05 * armor) / (1.5 + 0.04 * armor);
+                var ownerUnitBaseDamage = (sourceUnit != undefined) ? sourceUnit.getBaseDamage() : 0;
+                if (damageData.unitAttributes) {
+                    _.forEach(damageData.unitAttributes, function (damageValue, damageAttrKey) {
+                        var attribute = self._stats.attributes[damageAttrKey];
+                        if (attribute) {
+                            if (damageAttrKey == 'health') {
+                                damageValue += ownerUnitBaseDamage;
+                            }
+                            damageValue *= 1 - damageReduction;
+                            var newValue = (attribute.value || 0) - (damageValue || 0);
+                            self.attribute.update(damageAttrKey, newValue, true);
+                        }
+                    });
+                }
 
                 if (damageData.playerAttributes && targetPlayer && targetPlayer._stats.attributes) {
-					_.forEach(damageData.playerAttributes, function (damageValue, damageAttrKey) {
-						var attribute = targetPlayer._stats.attributes[damageAttrKey];
-						if (attribute) {
-							damageValue *= 1 - damageReduction;
-							var newValue = (attribute.value || 0) - (damageValue || 0);
-							targetPlayer.attribute.update(damageAttrKey, newValue, true);
-						}
-					});
-				}
+                    _.forEach(damageData.playerAttributes, function (damageValue, damageAttrKey) {
+                        var attribute = targetPlayer._stats.attributes[damageAttrKey];
+                        if (attribute) {
+                            damageValue *= 1 - damageReduction;
+                            var newValue = (attribute.value || 0) - (damageValue || 0);
+                            targetPlayer.attribute.update(damageAttrKey, newValue, true);
+                        }
+                    });
+                }
 
                 if (self._stats.ai && self._stats.ai.enabled) {
                     self.ai.registerAttack(sourceUnit);
                 }
 
                 return true;
-			}
+            }
         }
         return false;
     },
@@ -1286,8 +1324,7 @@ var Unit = IgeEntityBox2d.extend({
                 self.minimapUnit.destroy();
                 delete self.minimapUnit;
             }
-        }
-        else if (ige.isServer) {
+        } else if (ige.isServer) {
 
             // destroy all items in inventory
             for (var i = 0; i < self._stats.itemIds.length; i++) {
@@ -1309,14 +1346,14 @@ var Unit = IgeEntityBox2d.extend({
         IgeEntity.prototype.streamUpdateData.call(this, queuedData);
 
         for (var i = 0; i < queuedData.length; i++) {
-			var data = queuedData[i];
-			for (attrName in data) {
-				var newValue = data[attrName];
+            var data = queuedData[i];
+            for (attrName in data) {
+                var newValue = data[attrName];
 
                 switch (attrName) {
                     case 'type':
-						this.changeUnitType(newValue)
-						break;
+                        this.changeUnitType(newValue)
+                        break;
                     case 'itemIds':
                         //update shop as player points are changed and when shop modal is open
                         if (ige.isClient) {
@@ -1422,8 +1459,7 @@ var Unit = IgeEntityBox2d.extend({
                         if (ige.isClient) {
                             if (newValue == true) {
                                 self.hide()
-                            }
-                            else {
+                            } else {
                                 self.show()
                             }
                         }
@@ -1490,8 +1526,7 @@ var Unit = IgeEntityBox2d.extend({
                         if (self._stats.clientId === ige.network.id() && window.adBlockEnabled && defaultUnit.cellSheet.url !== purchasable.image) {
                             notifyAboutAdblocker(2);
                             $("#modd-shop-modal").modal('hide');
-                        }
-                        else {
+                        } else {
                             if (purchasable.image && purchasable.image.indexOf('cdn.discordapp.com') === -1) {
                                 self._stats.cellSheet.url = purchasable.image;
                             }
@@ -1500,8 +1535,7 @@ var Unit = IgeEntityBox2d.extend({
                 })
             }
             self.updateTexture();
-        }
-        else if (ige.isServer) {
+        } else if (ige.isServer) {
             self._stats.cellSheet.url = equipPurchasable.image;
             if (!owner._stats.purchasables || !(owner._stats.purchasables instanceof Array)) owner._stats.purchasables = [];
             var index = owner._stats.purchasables.findIndex(function (purchasable) {
@@ -1512,9 +1546,12 @@ var Unit = IgeEntityBox2d.extend({
             }
             var purchasables = _.cloneDeep(owner._stats.purchasables);
             purchasables.push(equipPurchasable);
-            owner.streamUpdateData([
-                {purchasables: purchasables},
-                {equiped: true}
+            owner.streamUpdateData([{
+                    purchasables: purchasables
+                },
+                {
+                    equiped: true
+                }
             ]);
         }
     },
@@ -1533,14 +1570,16 @@ var Unit = IgeEntityBox2d.extend({
                 var purchasables = _.cloneDeep(owner._stats.purchasables);
                 if (index > -1) {
                     purchasables.splice(index, 1);
-                    owner.streamUpdateData([
-                        { purchasables: purchasables},
-                        {unEquiped: cellSheetUrl }
+                    owner.streamUpdateData([{
+                            purchasables: purchasables
+                        },
+                        {
+                            unEquiped: cellSheetUrl
+                        }
                     ])
                 }
             }
-        }
-        else if (ige.isClient) {
+        } else if (ige.isClient) {
             if (cellSheetUrl === self._stats.cellSheet.url || forceFullyUnequip) {
                 self._stats.cellSheet.url = defaultUnit.cellSheet.url;
             }
@@ -1637,7 +1676,7 @@ var Unit = IgeEntityBox2d.extend({
                 }
 
                 if (ige.isServer) {
-                     // rotate unit
+                    // rotate unit
                     if (self.angleToTarget != undefined && !isNaN(self.angleToTarget) &&
                         this._stats.controls && this._stats.controls.mouseBehaviour.rotateToFaceMouseCursor &&
                         this._stats.currentBody && !this._stats.currentBody.fixedRotation
@@ -1699,17 +1738,17 @@ var Unit = IgeEntityBox2d.extend({
                 // apply movement if it's either human-controlled unit, or ai unit that's currently moving
                 if (self.body && vector && (vector.x != 0 || vector.y != 0)) {
                     if (self._stats.controls)
-                    switch (self._stats.controls.movementMethod) { // velocity-based movement
-                        case 'velocity':
-                            self.setLinearVelocity(vector.x, vector.y);
-                            break;
-                        case 'force':
-                            self.applyForce(vector.x, vector.y);
-                            break;
-                        case 'impulse':
-                            self.applyImpulse(vector.x, vector.y);
-                            break;
-                    }
+                        switch (self._stats.controls.movementMethod) { // velocity-based movement
+                            case 'velocity':
+                                self.setLinearVelocity(vector.x, vector.y);
+                                break;
+                            case 'force':
+                                self.applyForce(vector.x, vector.y);
+                                break;
+                            case 'impulse':
+                                self.applyImpulse(vector.x, vector.y);
+                                break;
+                        }
                 }
             }
 
@@ -1721,7 +1760,7 @@ var Unit = IgeEntityBox2d.extend({
                     self.flip(1);
                 }
             }
-            
+
         }
 
         if (ige.isClient) {
@@ -1730,10 +1769,10 @@ var Unit = IgeEntityBox2d.extend({
                 self.minimapUnit.translateTo(self._translate.x, self._translate.y, 0);
             }
 
-            if(this.isPlayingSound) {
+            if (this.isPlayingSound) {
                 this.isPlayingSound.volume = ige.sound.getVolume(this._translate);
             }
-            
+
 
 
             // if(Date.now() - self.dob > 3000) {
@@ -1753,7 +1792,7 @@ var Unit = IgeEntityBox2d.extend({
         }
 
         // if entity (unit/item/player/projectile) has attribute, run regenerate
-        if (ige.isServer || (ige.physics && ige.isClient && ige.client.selectedUnit == this && ige.game.cspEnabled )) {
+        if (ige.isServer || (ige.physics && ige.isClient && ige.client.selectedUnit == this && ige.game.cspEnabled)) {
             if (this.attribute) {
                 this.attribute.regenerate();
             }
@@ -1768,4 +1807,6 @@ var Unit = IgeEntityBox2d.extend({
     }
 });
 
-if (typeof (module) !== 'undefined' && typeof (module.exports) !== 'undefined') { module.exports = Unit; }
+if (typeof (module) !== 'undefined' && typeof (module.exports) !== 'undefined') {
+    module.exports = Unit;
+}
