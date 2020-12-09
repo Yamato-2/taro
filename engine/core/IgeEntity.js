@@ -72,6 +72,7 @@ var IgeEntity = IgeObject.extend({
         this.lastServerStreamedPosition = null;
         this.lastTeleportedAt = 0
 
+        this._shader = null;
         if (ige.isClient) {
             this.anchorOffset = { x: 0, y: 0, rotate: 0 };
             this.addComponent(TweenComponent);
@@ -233,6 +234,16 @@ var IgeEntity = IgeObject.extend({
         }
         self.layer(body['z-index'].layer) // above "floor 2 layer", but under "trees layer"
             .depth(body['z-index'].depth);
+    },
+
+    updateShader: function() {
+        var self = this;
+        console.log(self);
+        if (!!this._shader) {
+            this._pixiTexture.filters = [ new PIXI.Filter('', this._shader, ige.shaderUbo) ];
+        } else {
+            this._pixiTexture.filters = [];
+        }
     },
 
     applyAnimationById: function (animationId) {
@@ -651,6 +662,9 @@ var IgeEntity = IgeObject.extend({
         this._pixiContainer.depth += parseInt(Math.random() * 1000) / 1000;
         this._pixiContainer.entityId = this.entityId;
         this._pixiContainer._category = this._category;
+        if (!!this._shader) {
+            texture.filters = [ new PIXI.Filter('', this._shader, ige.shaderUbo) ];
+        }
         this._pixiTexture = texture;
         this._pixiContainer.addChild(texture);
         if (defaultData) {

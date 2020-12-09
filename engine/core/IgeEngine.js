@@ -70,6 +70,32 @@ var IgeEngine = IgeEntity.extend({
 			// Enable UI element (virtual DOM) support
 			this.addComponent(IgeUiManagerComponent);
 			this.delayedStreamCount = 0
+
+			// Declare an "UBO" for shader support
+			this.shaderUbo = {
+				uTime: 0
+			};
+			this.shaderUboInfo = {
+				resolution: 100,
+				uTimeInterval: 0 
+			}
+			this.shaderUboInfo.uTimeInterval = setInterval(() => {
+				this.shaderUbo.uTime += 1 / this.shaderUboInfo.timerResolution;
+			}, 1000 / this.shaderUboInfo.timerResolution)
+			var uTResolution = 100;
+			var self = this;
+			Object.defineProperty(this.shaderUboInfo, "timerResolution", {
+				get: function() {
+					return uTResolution;
+				},
+				set: function(x) {
+					uTResolution = x;
+					clearInterval(self.shaderUboInfo.uTimeInterval);
+					self.shaderUboInfo.uTimeInterval = setInterval(() => {
+						self.shaderUbo.uTime += 1 / uTResolution;
+					}, 1000 / uTResolution)
+				}
+			});
 		}
 
 		// Set some defaults
