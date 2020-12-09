@@ -101,7 +101,7 @@ var Client = IgeClass.extend({
             'penetration', "bulletDistance", "bulletType", "ammoSize", "ammo", "ammoTotal",
             "reloadRate", "recoilForce", "fireRate", "knockbackForce", "canBeUsedBy", "spawnChance",
             "consumeBonus", "isConsumedImmediately", "type", "lifeSpan", "removeWhenEmpty", "spawnPosition",
-            "baseSpeed", "bonusSpeed", "controls"
+            "baseSpeed", "bonusSpeed", "controls", "shader"
         ];
 
 
